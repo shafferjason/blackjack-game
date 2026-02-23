@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blackjack</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #0b5d1e; color: #fff; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+.table { background: #1a7a33; border-radius: 24px; padding: 40px; max-width: 520px; width: 95%; box-shadow: 0 8px 32px rgba(0,0,0,.4); border: 6px solid #0e4a18; }
+h1 { text-align: center; margin-bottom: 24px; font-size: 1.6em; letter-spacing: 1px; }
+.hand { background: rgba(0,0,0,.15); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.hand h2 { font-size: .85em; text-transform: uppercase; letter-spacing: 2px; opacity: .7; margin-bottom: 8px; }
+.cards { font-size: 1.05em; line-height: 1.6; min-height: 1.6em; }
+.score { font-weight: bold; margin-top: 6px; font-size: 1.1em; }
+.actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+.btn { padding: 12px 32px; border: none; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: transform .1s; }
+.btn:active { transform: scale(.96); }
+.btn:disabled { opacity: .4; cursor: default; }
+.hit { background: #e8c616; color: #222; }
+.stand { background: #d44; color: #fff; }
+.deal { background: #fff; color: #1a7a33; }
+.msg { text-align: center; margin-top: 16px; padding: 12px; background: rgba(0,0,0,.2); border-radius: 8px; font-size: 1.15em; font-weight: bold; min-height: 46px; display: flex; align-items: center; justify-content: center; }
+.record { text-align: center; margin-top: 12px; font-size: .9em; opacity: .7; }
+</style>
+</head>
+<body>
+<div class="table">
+  <h1>Blackjack</h1>
+  <div class="hand">
+    <h2>Dealer</h2>
+    <div class="cards" id="dealer-cards">&mdash;</div>
+    <div class="score" id="dealer-score"></div>
+  </div>
+  <div class="hand">
+    <h2>You</h2>
+    <div class="cards" id="player-cards">&mdash;</div>
+    <div class="score" id="player-score"></div>
+  </div>
+  <div class="msg" id="message">Press Deal to start!</div>
+  <div class="actions" id="actions">
+    <button class="btn deal" onclick="deal()">Deal</button>
+  </div>
+  <div class="record" id="record">Record: 0W - 0L - 0T</div>
+</div>
+
+<script>
+const SUITS = ["Hearts", "Diamonds", "Clubs", "Spades"];
+const RANKS = ["2","3","4","5","6","7","8","9","10","Jack","Queen","King","Ace"];
+const VALUES = {"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"10":10,"Jack":10,"Queen":10,"King":10,"Ace":11};
+
+let deck = [], playerHand = [], dealerHand = [], gameOver = true;
+let wins = 0, losses = 0, pushes = 0;
+
+function createDeck() {
+  let d = [];
+  for (const s of SUITS) for (const r of RANKS) d.push({rank: r, suit: s});
+  for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [d[i],d[j]] = [d[j],d[i]]; }
+  return d;
+}
+
+function dealCard() {
+  if (deck.length === 0) deck = createDeck();
+  return deck.pop();
+}
+
+function cardStr(c) { return c.rank + " of " + c.suit; }
+function handStr(h) { return h.map(cardStr).join(", "); }
+
+function score(hand) {
+  let s = hand.reduce((a, c) => a + VALUES[c.rank], 0);
+  let aces = hand.filter(c => c.rank === "Ace").length;
+  while (s > 21 && aces > 0) { s -= 10; aces--; }
+  return s;
+}
+
+function render() {
+  const dc = document.getElementById("dealer-cards");
+  const ds = document.getElementById("dealer-score");
+  const pc = document.getElementById("player-cards");
+  const ps = document.getElementById("player-score");
+  const acts = document.getElementById("actions");
+
+  if (dealerHand.length === 0) { dc.textContent = "\u2014"; ds.textContent = ""; }
+  else if (gameOver) { dc.textContent = handStr(dealerHand); ds.textContent = "Score: " + score(dealerHand); }
+  else { dc.textContent = cardStr(dealerHand[0]) + ", [hidden]"; ds.textContent = ""; }
+
+  pc.textContent = playerHand.length ? handStr(playerHand) : "\u2014";
+  ps.textContent = playerHand.length ? "Score: " + score(playerHand) : "";
+
+  document.getElementById("record").textContent = "Record: " + wins + "W - " + losses + "L - " + pushes + "T";
+
+  if (gameOver) {
+    acts.innerHTML = '<button class="btn deal" onclick="deal()">Deal</button>';
+  } else {
+    acts.innerHTML = '<button class="btn hit" onclick="hit()">Hit</button><button class="btn stand" onclick="stand()">Stand</button>';
+  }
+}
+
+function setMsg(m) { document.getElementById("message").textContent = m; }
+
+function deal() {
+  if (deck.length < 4) deck = createDeck();
+  playerHand = [dealCard(), dealCard()];
+  dealerHand = [dealCard(), dealCard()];
+  gameOver = false;
+  setMsg("");
+
+  const pb = score(playerHand) === 21, db = score(dealerHand) === 21;
+  if (pb || db) {
+    gameOver = true;
+    if (pb && db) { setMsg("Both have Blackjack \u2014 Push!"); pushes++; }
+    else if (pb) { setMsg("Blackjack! You win!"); wins++; }
+    else { setMsg("Dealer has Blackjack! Dealer wins."); losses++; }
+  }
+  render();
+}
+
+function hit() {
+  if (gameOver) return;
+  playerHand.push(dealCard());
+  const s = score(playerHand);
+  if (s > 21) { gameOver = true; setMsg("You busted! Dealer wins."); losses++; render(); return; }
+  if (s === 21) { stand(); return; }
+  render();
+}
+
+function stand() {
+  if (gameOver) return;
+  while (score(dealerHand) < 17) dealerHand.push(dealCard());
+  gameOver = true;
+  const ps = score(playerHand), ds = score(dealerHand);
+  if (ps > 21) { setMsg("You busted! Dealer wins."); losses++; }
+  else if (ds > 21) { setMsg("Dealer busted! You win!"); wins++; }
+  else if (ps > ds) { setMsg("You win!"); wins++; }
+  else if (ds > ps) { setMsg("Dealer wins!"); losses++; }
+  else { setMsg("Push (tie)!"); pushes++; }
+  render();
+}
+
+deck = createDeck();
+</script>
+</body>
+</html>
